@@ -203,8 +203,25 @@ public class Adjunct {
         
         if(hasCss)
             out.write("<link rel='stylesheet' href='" + getBaseName(req)+".css' type='text/css' />");
-        if(hasJavaScript)
-            out.write("<script src='" + getBaseName(req) +".js' type='text/javascript'></script>");
+
+        if(hasJavaScript) {
+            String scriptSrc = getBaseName(req) + ".js";
+            String scriptId = "jenkins-adjunct:" + scriptSrc;
+            
+            // Call the backward compatibility backdoor to the jenkins-modules import function and use it
+            // to async load the adjunct script after the 'jenkins' and 'jenkins-backcompat' bundles are
+            // loaded (exported). This will result in this <script> tag being removed and a new <script> tag
+            // (with the same id but not data-replaceable) being added to the document <head> and having a
+            // src pointing to the scriptSrc.
+            out.write("<script type='text/javascript' id='" + scriptId + "' data-replaceable='true'>\n");
+            out.write("var _internal = window.jenkinsCIGlobal._internal;\n" +
+                      "_internal.import('jenkins', 'jenkins-backcompat')\n" +
+                      "    .onFulfilled(function() {\n" +
+                      "        // now it's safe to load the adjunct script.\n" +
+                      "        _internal.addScript('" + scriptId + "', '" + scriptSrc + "');\n" +
+                      "    });\n");
+            out.write("</script>");
+        }
     }
 
     public enum Kind { CSS, JS }
